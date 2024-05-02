@@ -37,6 +37,14 @@ public abstract class GameObject extends JLabel {
         super.paintComponent(g);
         g.drawImage(image, 0, 0, getWidth(), getHeight(), this);
     }
+
+    public int getImageWidth() {
+        return image.getWidth(null);
+    }
+
+    public int getImageHeight() {
+        return image.getHeight(null);
+    }
 } // GameObject class
 
 class BackgroundPanel extends JPanel {
@@ -93,37 +101,71 @@ class Bird extends GameObject {
     }
 } // Bird class
 
-class PipeDown extends GameObject {
+class Pipe extends GameObject {
+    private int speed = 1;
+    public static final int MIN_HEIGHT = 50;
+
+    public Pipe(Image image) {
+        super(image);
+    }
+
+    @Override
+    public void update() {
+        super.update();
+
+        // Move
+        x -= speed;
+        setLocation(x, y);
+
+        // Remove
+        if (x <= -50) {
+            getParent().remove(this);
+        }
+    }
+} // Pipe class
+
+class PipeDown extends Pipe {
     private static Image imgPipeDown = new ImageIcon(Main.getPath("/sprites/pipe_down.png")).getImage();
 
-    private final int SPEED = 1;
-
-    public PipeDown(Image image) {
+    public PipeDown() {
         super(imgPipeDown);
     }
 
     @Override
-    public void update() {
-        super.update();
-        System.out.println("pipe");
-        setLocation(x - SPEED, y);
+    public void setLocation(int x, int y) {
+        int clampY = Main.clamp(y, -imgPipeDown.getHeight(null) + Pipe.MIN_HEIGHT, 0);
+        super.setLocation(x, clampY);
     }
 
 }
 
-class PipeUp extends GameObject {
+class PipeUp extends Pipe {
     private static Image imgPipeUp = new ImageIcon(Main.getPath("/sprites/pipe_up.png")).getImage();
-    private final int SPEED = 1;
 
-    public PipeUp(Image image) {
+    public PipeUp() {
         super(imgPipeUp);
     }
 
     @Override
-    public void update() {
-        super.update();
-        System.out.println("pipe");
-        setLocation(x - SPEED, y);
+    public void setLocation(int x, int y) {
+        int clampY = Main.clamp(y, 472 - imgPipeUp.getHeight(null), 472 - Pipe.MIN_HEIGHT);
+        super.setLocation(x, clampY);
     }
 
+}
+
+class PipeSpawner {
+    public static final int SPAWN_DELAY = 2500;
+    public static final int GAP = 100;
+
+    public static void spawnPipe(BackgroundPanel root, int y) {
+        PipeUp pipeUp = new PipeUp();
+        PipeDown pipeDown = new PipeDown();
+
+        pipeUp.setLocation(600, y + GAP);
+        pipeDown.setLocation(600, y - GAP - pipeDown.getImageHeight());
+
+        root.add(pipeUp);
+        root.add(pipeDown);
+    }
 }
