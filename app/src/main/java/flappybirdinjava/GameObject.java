@@ -1,11 +1,14 @@
 package flappybirdinjava;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.stream.Stream;
+
 import javax.swing.*;
 
 public abstract class GameObject extends JLabel {
-    private final Image image;
-    private final int IMAGE_WIDTH, IMAGE_HEIGHT;
+    private Image image;
+    private int image_Width, image_Height;
     protected int x;
     protected int y;
 
@@ -14,13 +17,13 @@ public abstract class GameObject extends JLabel {
         this.image = image;
         setOpaque(false);
 
-        IMAGE_WIDTH = image.getWidth(null);
-        IMAGE_HEIGHT = image.getHeight(null);
+        image_Width = image.getWidth(null);
+        image_Height = image.getHeight(null);
     }
 
     public void update() {
         float sizeMultiply = Main.getSizeMultiply();
-        setSize((int) (IMAGE_WIDTH * sizeMultiply), (int) (IMAGE_HEIGHT * sizeMultiply));
+        setSize((int) (image_Width * sizeMultiply), (int) (image_Height * sizeMultiply));
     }
 
     @Override
@@ -44,6 +47,19 @@ public abstract class GameObject extends JLabel {
 
     public int getImageHeight() {
         return image.getHeight(null);
+    }
+
+    public void setImage(Image image) {
+        this.image = image;
+        image_Width = image.getWidth(null);
+        image_Height = image.getHeight(null);
+        repaint();
+    }
+
+    public boolean isColiided(GameObject object) {
+        Rectangle rectThis = new Rectangle(getX(), getY(), getWidth(), getHeight());
+        Rectangle rectObject = new Rectangle(object.getX(), object.getY(), object.getWidth(), object.getHeight());
+        return rectThis.intersects(rectObject);
     }
 } // GameObject class
 
@@ -97,16 +113,22 @@ class Bird extends GameObject {
     }
 
     public void jump() {
-        jump = 10;
+        if (Main.getFrame().isGameOver() == false) {
+            jump = 10;
+        }
     }
 } // Bird class
 
 class Pipe extends GameObject {
     private int speed = 1;
     public static final int MIN_HEIGHT = 50;
+    private Bird bird;
+    public final String TAG;
 
-    public Pipe(Image image) {
+    public Pipe(Image image, String tag) {
         super(image);
+        bird = Main.getFrame().getBird();
+        TAG = tag;
     }
 
     @Override
@@ -121,6 +143,22 @@ class Pipe extends GameObject {
         if (x <= -50) {
             getParent().remove(this);
         }
+
+        // Collision
+        if (Main.getFrame().isGameOver() || getX() + getWidth() < bird.getX()) {
+            return;
+        }
+        if (isColiided(bird)) {
+            switch (TAG) {
+                case "Pipe":
+                    Main.getFrame().gameOver();
+                    break;
+                case "ScoreAdder":
+                    getParent().remove(this);
+                    Main.getFrame().addScore();                    
+                    break;
+            }
+        }
     }
 } // Pipe class
 
@@ -128,7 +166,7 @@ class PipeDown extends Pipe {
     private static Image imgPipeDown = new ImageIcon(Main.getPath("/sprites/pipe_down.png")).getImage();
 
     public PipeDown() {
-        super(imgPipeDown);
+        super(imgPipeDown, "Pipe");
     }
 
     @Override
@@ -143,7 +181,7 @@ class PipeUp extends Pipe {
     private static Image imgPipeUp = new ImageIcon(Main.getPath("/sprites/pipe_up.png")).getImage();
 
     public PipeUp() {
-        super(imgPipeUp);
+        super(imgPipeUp, "Pipe");
     }
 
     @Override
@@ -159,13 +197,94 @@ class PipeSpawner {
     public static final int GAP = 100;
 
     public static void spawnPipe(BackgroundPanel root, int y) {
+        if (Main.getFrame().isGameOver()) {
+            return;
+        }
         PipeUp pipeUp = new PipeUp();
         PipeDown pipeDown = new PipeDown();
+        ScoreAdder scoreAdder = new ScoreAdder();
 
         pipeUp.setLocation(600, y + GAP);
         pipeDown.setLocation(600, y - GAP - pipeDown.getImageHeight());
+        scoreAdder.setLocation(642, y - scoreAdder.getImageHeight() / 2);
 
         root.add(pipeUp);
         root.add(pipeDown);
+        root.add(scoreAdder);
+    }
+}
+
+class ScoreAdder extends Pipe {
+
+    public ScoreAdder() {
+        super(getImage(), "ScoreAdder");
+    }
+
+    public static Image getImage() {
+        // width = 10
+        // height = frame.getHeight * 2 = 512 * 2 = 1024
+        // x, y = spawner
+        BufferedImage buffImage = new BufferedImage(10, 1024, BufferedImage.TYPE_INT_ARGB);
+        return new ImageIcon(buffImage).getImage();
+    }
+
+}
+
+class ScoreText extends GameObject {
+    private static final Image[] aryImage = {
+        new ImageIcon(Main.getPath("/sprites/0.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/1.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/2.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/3.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/4.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/5.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/6.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/7.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/8.png")).getImage(),
+        new ImageIcon(Main.getPath("/sprites/9.png")).getImage()
+    };
+
+    private class Margin {
+        public static final int X = 3;
+        public static final int Y = 12;
+    }
+
+    private int score = 0;
+    private Image image;
+
+    public ScoreText() {
+        super(aryImage[0]);
+        updateImage();
+    }
+
+    public void addScore(int score) {
+        try {
+            this.score += score;
+            updateImage();
+        }
+        catch(Exception e) {}
+    }
+
+    public void updateImage() {
+        int[] parsedScore = Stream.of(String.valueOf(score).split("")).mapToInt(Integer::parseInt).toArray();
+        int height = aryImage[0].getHeight(null) + Margin.Y;
+        BufferedImage newImage = new BufferedImage(512, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = newImage.createGraphics();
+
+        int offset = 0;
+        for(int k : parsedScore) {
+            offset += aryImage[k].getWidth(null) + Margin.X;
+        }
+        int x = 256 - offset / 2;
+        for (int k : parsedScore) {
+            Image imgNumber = aryImage[k];
+            graphics.drawImage(imgNumber, x, Margin.Y, null);
+            x += imgNumber.getWidth(null) + Margin.X;
+        }
+        graphics.dispose();
+
+        new ImageIcon(newImage).getImage();
+
+        setImage(new ImageIcon(newImage).getImage());
     }
 }

@@ -16,14 +16,17 @@ public class Frame extends JFrame {
     private static int taskBarHeight = (int) (scrnSize.getHeight() - winSize.getHeight());
 
     // Components
-    Bird bird = new Bird();
-
-    PipeUp pipeUp = new PipeUp();
-    PipeDown pipeDown = new PipeDown();
+    private Bird bird = new Bird();
+    private ScoreText scoreText = new ScoreText();
 
     // Variable
     private float sizeMultiply = 1.0f;
     private final int ORIGIN_SIZE = 512;
+    private boolean flagGameOver = false;
+
+
+    Timer pipeSpawnTimer;
+    TimerTask pipeSpawnTimerTask;
 
     public Frame() {
         // Initialize
@@ -36,6 +39,11 @@ public class Frame extends JFrame {
 
         // Game Screen
         pnlGame.setLayout(null);
+        scoreText.setLocation(0, 0);
+        scoreText.setSize(0, 0);
+        pnlGame.add(scoreText);
+
+
         bird.setLocation(100, 100);
         bird.setSize(100, 100);
         pnlGame.add(bird);
@@ -51,9 +59,8 @@ public class Frame extends JFrame {
             }
         };
         timer.scheduleAtFixedRate(timerTask, 0, 10);
-
-        Timer pipeSpawnTimer = new Timer();
-        TimerTask pipeSpawnTimerTask = new TimerTask() {
+        pipeSpawnTimer = new Timer();
+        pipeSpawnTimerTask = new TimerTask() {
             @Override
             public void run() {
                 // #TODO: 파이프 생성 구문 추가
@@ -64,7 +71,7 @@ public class Frame extends JFrame {
 
             }
         };
-        pipeSpawnTimer.scheduleAtFixedRate(pipeSpawnTimerTask, PipeSpawner.SPAWN_DELAY, PipeSpawner.SPAWN_DELAY);
+        pipeSpawnTimer.scheduleAtFixedRate(pipeSpawnTimerTask, 0, PipeSpawner.SPAWN_DELAY);
     } // Constructor
 
     public float getSizeMultiply() {
@@ -73,6 +80,23 @@ public class Frame extends JFrame {
 
     public int getTaskBarHeight() {
         return taskBarHeight;
+    }
+
+    public Bird getBird() {
+        return bird;
+    }
+
+    public void gameOver() {
+        flagGameOver = true;
+        pipeSpawnTimer.cancel();
+    }
+
+    public boolean isGameOver() {
+        return flagGameOver;
+    }
+
+    public void addScore() {
+        scoreText.addScore(10);
     }
 
     @Override
@@ -95,6 +119,10 @@ public class Frame extends JFrame {
         public void mousePressed(MouseEvent e) {
             bird.jump();
         }
+    }
+
+    private class MyKeyAdapter extends KeyAdapter {
+        // #TODO: 스페이스바를 눌렀을 때 점프가 되도록 구현
     }
 
 } // Frame class
