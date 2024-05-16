@@ -1,10 +1,13 @@
 package flappybirdinjava;
 
 import java.awt.*;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.util.stream.Stream;
 
 import javax.swing.*;
+
+import com.google.errorprone.annotations.OverridingMethodsMustInvokeSuper;
 
 public abstract class GameObject extends JLabel {
     private Image image;
@@ -102,6 +105,10 @@ class Bird extends GameObject {
     public void update() {
         super.update();
 
+        if (Main.getFrame().isGameStart() == false) {
+            return;
+        }
+
         if (jump > -GRAVITY) {
             jump -= G_FORCE;
         } else {
@@ -110,6 +117,10 @@ class Bird extends GameObject {
 
         y = Main.clamp((int) (y - jump), 0, 472 - image.getHeight(null));
         setLocation(x, y);
+
+        if (y >= 472 - image.getHeight(null)) {
+            Main.getFrame().gameOver();
+        }
     }
 
     public void jump() {
@@ -136,7 +147,9 @@ class Pipe extends GameObject {
         super.update();
 
         // Move
-        x -= speed;
+        if (Main.getFrame().isGameStart() && Main.getFrame().isGameOver() == false) {
+            x -= speed;
+        }
         setLocation(x, y);
 
         // Remove
@@ -155,7 +168,7 @@ class Pipe extends GameObject {
                     break;
                 case "ScoreAdder":
                     getParent().remove(this);
-                    Main.getFrame().addScore();                    
+                    Main.getFrame().addScore();
                     break;
             }
         }
@@ -232,16 +245,16 @@ class ScoreAdder extends Pipe {
 
 class ScoreText extends GameObject {
     private static final Image[] aryImage = {
-        new ImageIcon(Main.getPath("/sprites/0.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/1.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/2.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/3.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/4.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/5.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/6.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/7.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/8.png")).getImage(),
-        new ImageIcon(Main.getPath("/sprites/9.png")).getImage()
+            new ImageIcon(Main.getPath("/sprites/0.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/1.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/2.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/3.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/4.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/5.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/6.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/7.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/8.png")).getImage(),
+            new ImageIcon(Main.getPath("/sprites/9.png")).getImage()
     };
 
     private class Margin {
@@ -250,10 +263,14 @@ class ScoreText extends GameObject {
     }
 
     private int score = 0;
-    private Image image;
 
     public ScoreText() {
         super(aryImage[0]);
+        updateImage();
+    }
+
+    public void resetScore() {
+        score = 0;
         updateImage();
     }
 
@@ -261,8 +278,8 @@ class ScoreText extends GameObject {
         try {
             this.score += score;
             updateImage();
+        } catch (Exception e) {
         }
-        catch(Exception e) {}
     }
 
     public void updateImage() {
@@ -272,7 +289,7 @@ class ScoreText extends GameObject {
         Graphics2D graphics = newImage.createGraphics();
 
         int offset = 0;
-        for(int k : parsedScore) {
+        for (int k : parsedScore) {
             offset += aryImage[k].getWidth(null) + Margin.X;
         }
         int x = 256 - offset / 2;
@@ -287,4 +304,53 @@ class ScoreText extends GameObject {
 
         setImage(new ImageIcon(newImage).getImage());
     }
+}
+
+class Screen extends GameObject {
+    Screen(Image image) {
+        super(image);
+    }
+
+    @Override
+    public void update() {
+        super.update();
+        setLocation(x, y);
+    }
+}
+
+class StartScreen extends Screen {
+    private static final Image image = new ImageIcon(Main.getPath("/sprites/main.png")).getImage();
+
+    public StartScreen() {
+        super(image);
+    }
+
+}
+
+class GameOverScreen extends Screen {
+    private static final Image image = new ImageIcon(Main.getPath("/sprites/game_over.png")).getImage();
+
+    public GameOverScreen() {
+        super(image);
+        setVisible(false);
+    }
+
+}
+
+class ResetButton extends Screen {
+    private static final Image image = new ImageIcon(Main.getPath("/sprites/play.png")).getImage();
+
+    ResetButton() {
+        super(image);
+        setVisible(false);
+        addMouseListener(new MyMouseAdapter());
+    }
+
+    private class MyMouseAdapter extends MouseAdapter {
+        @Override
+        public void mousePressed(MouseEvent e) {
+            Main.getFrame().resetGame();
+        }
+    }
+
 }
